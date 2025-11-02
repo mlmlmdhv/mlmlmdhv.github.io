@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>神秘的礼物🎃</title>
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5; min-height: 100vh; }
+        .gift-box { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; font-size: 16px; margin: 10px 2px; cursor: pointer; border-radius: 5px; }
+        .toast { 
+            position: fixed; 
+            color: white; 
+            padding: 25px 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3); 
+            opacity: 0; 
+            transform: scale(0.8); 
+            transition: opacity 0.8s ease, transform 0.8s ease; 
+            cursor: move; 
+            z-index: 100; 
+            font-size: 18px; 
+        }
+        .final-tip { 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%) scale(0.8); 
+            background: #4CAF50; 
+            color: white; 
+            padding: 20px 40px; 
+            border-radius: 10px; 
+            font-size: 18px; 
+            opacity: 0; 
+            transition: opacity 0.8s ease, transform 0.8s ease; 
+            z-index: 999; 
+        }
+    </style>
+</head>
+<body>
+    <div class="gift-box">
+        <h2>神秘的礼物🎃</h2>
+        <p>您有一份神秘礼物，确定要打开吗？</p>
+        <button onclick="openGift()">确定</button>
+    </div>
+    <div class="final-tip" id="finalTip">祝你每天开心！</div>
+    <script>
+        const messages = [
+            "保持好心情", "保持微笑呀", "不开心就想其他事", "天冷了，多穿衣服",
+            "今天过得开心嘛", "找寻向前的道路", "别太累啦，偶尔偷懒也好", "不要因有些人坏了心情",
+            "期待与你的见面", "你超棒的", "😘", "🥰"
+        ];
+        const showDuration = 15000;
+        const interval = 1000;
+        const loopTimes = 3;
+        let totalCount = 0;
+        let timer = null;
+        const randomColors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
+            '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF7675'
+        ];
+        const overlapThreshold = 100;
+        const maxOverlapCount = 2;
+
+        function openGift() {
+            document.querySelector('.gift-box').style.display = 'none';
+            startLoop();
+        }
+
+        function startLoop() {
+            timer = setInterval(() => {
+                const msgIndex = totalCount % messages.length;
+                createToast(messages[msgIndex]);
+                totalCount++;
+
+                if (totalCount >= loopTimes * messages.length) {
+                    clearInterval(timer);
+                    setTimeout(() => {
+                        const finalTip = document.getElementById('finalTip');
+                        finalTip.style.opacity = 1;
+                        finalTip.style.transform = 'translate(-50%, -50%) scale(1)';
+                        setTimeout(() => {
+                            finalTip.style.opacity = 0;
+                            finalTip.style.transform = 'translate(-50%, -50%) scale(0.8)';
+                        }, 3000);
+                    }, showDuration);
+                }
+            }, interval);
+        }
+
+        function isOverlapping(newPos, existingToasts) {
+            return existingToasts.some(toast => {
+                const toastRect = toast.getBoundingClientRect();
+                const distance = Math.sqrt(
+                    Math.pow(newPos.left - toastRect.left, 2) +
+                    Math.pow(newPos.top - toastRect.top, 2)
+                );
+                return distance < overlapThreshold;
+            });
+        }
+
+        function getActiveToasts() {
+            return Array.from(document.querySelectorAll('.toast')).filter(toast => {
+                return parseFloat(toast.style.opacity) > 0;
+            });
+        }
+
+        function createToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            toast.style.backgroundColor = randomColors[Math.floor(Math.random() * randomColors.length)];
+
+            const maxLeft = window.innerWidth - 300;
+            const maxTop = window.innerHeight - 150;
+            let newLeft, newTop;
+            let overlapCount = 0;
+            const maxAttempts = 20;
+            let attempts = 0;
+
+            do {
+                newLeft = Math.random() * maxLeft;
+                newTop = Math.random() * maxTop;
+                const newPos = { left: newLeft, top: newTop };
+                const activeToasts = getActiveToasts();
+                overlapCount = activeToasts.filter(toast => isOverlapping(newPos, [toast])).length;
+                attempts++;
+            } while (overlapCount >= maxOverlapCount && attempts < maxAttempts);
+
+            toast.style.left = `${newLeft}px`;
+            toast.style.top = `${newTop}px`;
+            document.body.appendChild(toast);
+
+            // 修复核心：用requestAnimationFrame确保DOM渲染完成后再触发动画
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    toast.style.opacity = 1;
+                    toast.style.transform = 'scale(1)';
+                }, 10);
+            });
+
+            // 渐出时等待动画完成再移除
+            setTimeout(() => {
+                toast.style.opacity = 0;
+                toast.style.transform = 'scale(0.8)';
+                setTimeout(() => {
+                    if (document.body.contains(toast)) {
+                        document.body.removeChild(toast);
+                    }
+                }, 800);
+            }, showDuration);
+
+            // 拖动功能
+            let isDragging = false;
+            let offsetX, offsetY;
+            toast.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - toast.getBoundingClientRect().left;
+                offsetY = e.clientY - toast.getBoundingClientRect().top;
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    toast.style.left = `${e.clientX - offsetX}px`;
+                    toast.style.top = `${e.clientY - offsetY}px`;
+                }
+            });
+            document.addEventListener('mouseup', () => isDragging = false);
+        }
+    </script>
+</body>
+</html>
